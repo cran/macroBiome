@@ -455,58 +455,69 @@ errorChecking <- function(year = 2000, MSMC = 150., dvVAR = rep(0.7, 12), dvTEMP
 
 
 # ********************************************************************************************************************
-# Name:     errorCheckingGrid
+# Name:     errorHandlingGrid
 # Inputs:   - S4, one-year time series of monthly mean air temperature, deg C (rs.temp)
 #           - S4, one-year time series of monthly precipitation sum, mm (rs.prec)
 #           - S4, one-year time series of monthly mean relative sunshine duration, unitless (rs.bsdf)
 #           - S4, elevation, m (rl.elv)
 #           - S4, maximum soil moisture capacity /'bucket size'/, mm (rl.MSMC)
 # Returns:  - warning message if any input arguments do not meet requirements
-# Features: This function checks the input arguments to each function of the package meet the requirements.
+# Features: This function checks and corrects the input arguments to each function of the package meet the requirements.
 # ********************************************************************************************************************
-errorCheckingGrid <- function(rs.temp = NULL, rs.prec = NULL, rs.bsdf = NULL, rl.elv = NULL, rl.MSMC = NULL) {
+errorHandlingGrid <- function(rs.temp = NULL, rs.prec = NULL, rs.bsdf = NULL, rl.elv = NULL, rl.MSMC = NULL) {
 
   # Labels for objects to be checked
   cv.ckd_obj <- c("rs.temp", "rs.prec", "rs.bsdf", "rl.elv", "rl.MSMC")
 
   # Labels for valid classes of objects to be checked
-  cv.rstr_cls <- c("RasterLayer", "RasterBrick", "RasterStack")
+  cv.rstr_cls <- c("SpatRaster", "RasterLayer", "RasterBrick", "RasterStack")
 
-  # Number of layers in each Raster* object
+  # Number of layers in each Raster*/SpatRaster object
   nv.num_lyr <- c(12, 12, 12, 1, 1)
 
   # Checking the class of objects
   for (i_co in 1 : length(cv.ckd_obj)) {
     ckd_obj <- get(cv.ckd_obj[i_co])
     if (!is.null(ckd_obj)) {
-      if (length(which(!is.na(match(class(ckd_obj), cv.rstr_cls)))) < 1L) {
-        stop("Invalid argument: '", cv.ckd_obj[i_co], "' has to be a RasterLayer, RasterBrick, or a RasterStack.")
+      if (all(sapply(cv.rstr_cls, function(x) { !inherits(ckd_obj, x) } ))) {
+        stop("Invalid argument: '", cv.ckd_obj[i_co], "' has to be a RasterLayer, RasterBrick, a RasterStack,",
+             " or a SpatRaster object.")
+      }
+      if (!inherits(ckd_obj, "SpatRaster")) {
+        assign(cv.ckd_obj[i_co], methods::as(ckd_obj, "SpatRaster"))
       }
     }
   }
 
-  # Checking whether Raster* objects contain enough layers
+  # Checking whether Raster*/SpatRaster objects contain enough layers
   for (i_co in 1 : length(cv.ckd_obj)) {
     ckd_obj <- get(cv.ckd_obj[i_co])
     num_lyr <- nv.num_lyr[i_co]
     if (!is.null(ckd_obj)) {
-      if (raster::nlayers(ckd_obj) != num_lyr) {
-        stop("Invalid argument: '", cv.ckd_obj[i_co], "' has to be a Raster* object with ", num_lyr,
+      if (terra::nlyr(ckd_obj) != num_lyr) {
+        stop("Invalid argument: '", cv.ckd_obj[i_co], "' has to be a Raster*/SpatRaster object with ", num_lyr,
              ifelse(num_lyr == 1, " layer.", " layers."))
       }
     }
   }
 
-  # Checking whether Raster* objects have the same extent, number of rows and columns, projection, and resolution
-  raster::rasterOptions(tolerance = 0.5)
-  if (!raster::compareRaster(Filter(Negate(is.null), as.list(rs.temp, rs.prec, rs.bsdf, rl.elv, rl.MSMC)),
-                             res = TRUE, rotation = FALSE, stopiffalse = FALSE, showwarning = TRUE)) {
-    cv.gr_obj <- cv.ckd_obj
-    cv.gr_obj <- cv.gr_obj[sapply(cv.gr_obj, function(x) { !is.null(get(x)) })]
-    stop("The Raster* objects ",
-         paste0(paste(cv.gr_obj[1 : (length(cv.gr_obj) - 1)], sep = "", collapse = ", "), " and ",
-                cv.gr_obj[length(cv.gr_obj)]),
-         " must have the same extent, number of rows and columns, projection, and resolution.")
+  # Checking whether Raster*/SpatRaster objects have the same extent, number of rows and columns, projection, and resolution
+  terra::terraOptions(tolerance = 0.5)
+  ls1 <- Filter(Negate(is.null), list(rs.temp, rs.prec, rs.bsdf, rl.elv, rl.MSMC))
+  if (length(ls1) != 1) {
+    ls2 <- Map(list,  ls1[-length(ls1)], ls1[-1])
+    ls3 <- lapply(ls2, function(z) terra::compareGeom(z[[1]], z[[2]], stopOnError = FALSE, messages = TRUE))
+    if (any(!unlist(ls3))) {
+      cv.gr_obj <- cv.ckd_obj
+      cv.gr_obj <- cv.gr_obj[sapply(cv.gr_obj, function(x) { !is.null(get(x)) })]
+      stop("The SpatRaster objects ",
+           paste0(paste(cv.gr_obj[1 : (length(cv.gr_obj) - 1)], sep = "", collapse = ", "), " and ",
+                  cv.gr_obj[length(cv.gr_obj)]),
+           " must have the same extent, number of rows and columns, projection, and resolution.")
+    }
   }
+
+  err_han <- mget(cv.ckd_obj)
+  return(err_han)
 
 }

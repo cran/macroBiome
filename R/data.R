@@ -88,6 +88,8 @@ NULL
 #' data(inp_exSglyGrid)
 #' str(inp_exSglyGrid)
 #'
+#' @import raster
+#'
 NULL
 
 #' Mandatory Data for the Example 'Climate Normal Grid'
@@ -131,6 +133,8 @@ NULL
 #' @examples
 #' data(inp_exClnrGrid)
 #' str(inp_exClnrGrid)
+#'
+#' @import raster
 #'
 NULL
 

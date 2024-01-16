@@ -7,23 +7,25 @@
 cliHoldridgeGrid(rs.temp, rs.prec, verbose = FALSE, filename = "", ...)
 }
 \arguments{
-\item{rs.temp}{multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)}
+\item{rs.temp}{multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+(in °C)}
 
-\item{rs.prec}{multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)}
+\item{rs.prec}{multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+(in mm)}
 
 \item{verbose}{'logical' scalar that indicates whether or not values of the bioclimatic indices used should be
 added to the output.}
 
 \item{filename}{output filename}
 
-\item{...}{additional arguments passed on to \code{\link[raster]{writeRaster}}}
+\item{...}{additional arguments passed on to \code{\link[terra]{writeRaster}}}
 }
 \value{
-Depending on the setting, a RasterStack with one or more layers where the numeric integers encoding the
-    HLZ type are stored at the last layer, while the additional layers contain the values of bioclimatic indices
-    used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
-    \code{verbose = FALSE}, the return object is a single-layer RasterStack with numeric integers encoding the HLZ
-    type.
+Depending on the setting, a SpatRaster object with one or more layers where the numeric integers encoding
+    the HLZ type are stored at the last layer, while the additional layers contain the values of bioclimatic
+    indices used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
+    \code{verbose = FALSE}, the return object is a single-layer SpatRaster obejct with numeric integers encoding
+    the HLZ type.
 }
 \description{
 Calculates the values of bioclimatic indices used in the Holdridge life zone (HLZ) system
@@ -34,8 +36,8 @@ Calculates the values of bioclimatic indices used in the Holdridge life zone (HL
 See \code{\link[macroBiome]{cliHoldridgePoints}}.
 }
 \note{
-The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster* objects. These Raster* objects
-    must have the same bounding box, projection, and resolution.
+The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster*/SpatRaster objects. These
+    Raster*/SpatRaster objects must have the same bounding box, projection, and resolution.
 }
 \examples{
 # Loading mandatory data for the Example 'Climate Normal Grid'

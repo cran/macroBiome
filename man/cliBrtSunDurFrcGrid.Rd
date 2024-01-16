@@ -15,11 +15,13 @@ cliBrtSunDurFrcGrid(
 )
 }
 \arguments{
-\item{rs.temp}{multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)}
+\item{rs.temp}{multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+(in °C)}
 
-\item{rs.prec}{multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)}
+\item{rs.prec}{multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+(in mm)}
 
-\item{rl.elv}{single-layer Raster* object with the elevation values (in meters above sea level)}
+\item{rl.elv}{single-layer Raster*/SpatRaster object with the elevation values (in meters above sea level)}
 
 \item{sc.year}{'numeric' scalar with the value of the year (using astronomical year numbering)}
 
@@ -46,10 +48,10 @@ derived as the quotient of the daily surface radiation and the daylength.}
 
 \item{filename}{output filename}
 
-\item{...}{additional arguments passed on to \code{\link[raster]{writeRaster}}}
+\item{...}{additional arguments passed on to \code{\link[terra]{writeRaster}}}
 }
 \value{
-A 12-layer RasterStack with one-year time series of monthly mean relative sunshine duration.
+A 12-layer SpatRaster object with one-year time series of monthly mean relative sunshine duration.
 }
 \description{
 Estimates monthly averages for daily fraction of bright sunshine duration, for a given region and
@@ -59,11 +61,15 @@ Estimates monthly averages for daily fraction of bright sunshine duration, for a
 See \code{\link[macroBiome]{cliBrtSunDurFrcPoints}}.
 }
 \note{
-The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster* objects, while the object
-    \code{'rl.elv'} has to be a single-layer Raster* object. These Raster* objects must have the same bounding
-    box, projection, and resolution. The object \code{'sc.year'} has to be a single integer number.
+The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster*/SpatRaster objects, while the
+    object \code{'rl.elv'} has to be a single-layer Raster*/SpatRaster object. These Raster*/SpatRaster objects
+    must have the same bounding box, projection, and resolution. The object \code{'sc.year'} has to be a single
+    integer number.
 }
 \examples{
+\donttest{
+library(raster)
+
 # Loading mandatory data for the Example 'Single-Year Grid'
 data(inp_exSglyGrid)
 inp_exSglyGrid <- lapply(inp_exSglyGrid, crop, extent(20.15, 20.25, 46.25, 46.35))
@@ -74,6 +80,7 @@ with(inp_exSglyGrid, {
 rs.bsdf <- cliBrtSunDurFrcGrid(temp, prec, elv, sc.year = 2010)
 rs.bsdf
 })
+}
 
 }
 \references{

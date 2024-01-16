@@ -44,10 +44,11 @@
 #'     The procedure proposed by Yin (1999) requires the calculation of several regional factors (see Eq 3.3 in Yin
 #'     (1999)). Each regional factor is activated as a function of latitude and longitude. However, it is important
 #'     to note that in this implementation, these factors are activated with the current configuration of continents
-#'     and islands. Continents and regions are classified using the high-resolution world map of the
-#'     \code{\link[rworldxtra]{rworldxtra-package}}. In checking whether or not a given geographic location can be
-#'     defined as an island, the high-resolution world map of the \code{\link[rnaturalearth]{rnaturalearth}}
-#'     is applied.
+#'     and islands. Continents and regions are classified using the medium-resolution world map of the
+#'     \code{\link[rnaturalearthdata]{rnaturalearthdata}}, if the high-resolution world map of the
+#'     \href{https://github.com/ropensci/rnaturalearthhires}{rnaturalearthhires} is not available. In checking whether
+#'     or not a given geographic location can be defined as an island, the high-resolution world maps (version 5.1.1)
+#'     of the \href{https://www.naturalearthdata.com/}{Natural Earth} are applied.
 #'
 #' @return A 12-column matrix with monthly averages of relative sunshine duration.
 #'
@@ -97,6 +98,7 @@
 #'     Theor Appl Climatol 64(1–2):61–68. \doi{10.1007/s007040050111}}
 #'
 #' @examples
+#' \donttest{
 #' library (graphics)
 #'
 #' # Loading mandatory data for the Example 'Points'
@@ -118,7 +120,6 @@
 #' legend(1, 0.7, legend = rownames(bsdf01), col = cols, lty = 1 : 2, lwd = 2, xpd = TRUE)
 #' })
 #'
-#' \donttest{
 #' # Relative root mean square error between measured and estimated values for the 'bsdf',
 #' # at a grid cell near Szeged, Hungary (46.3N, 20.2E), in the period 1981-2010
 #' with(inp_exPoints, {
@@ -133,11 +134,12 @@
 #' })
 #' }
 #'
-#' @importFrom sp CRS over proj4string SpatialPoints
+#' @importFrom devtools install_github
+#' @importFrom sf st_as_sf st_crs st_intersects st_make_valid
 #' @importFrom stats complete.cases setNames
 #' @importFrom strex match_arg
-#' @importFrom utils data
-#' @import rworldxtra
+#' @importFrom utils data installed.packages packageVersion
+#' @import rnaturalearthdata
 #'
 #' @export
 #'
@@ -230,15 +232,26 @@ cliBrtSunDurFrcPoints <- function(temp, prec, lat, lon, elv, year = 2000, aprchS
   f_i <- array(dim = c(lgth, 6, n_moy), dimnames = list(NULL, c("IA", "NA", "SA", "EA", "MA", "AF"), month.abb))
 
   # Regional data of the point to consider regional idiosyncrasies
-  data("countriesHigh", envir = environment(), package = "rworldxtra")
-  countriesSP <- get("countriesHigh", envir = environment(), inherits = FALSE)
   vldPoints <- data.frame("lon" = lon[vld], "lat" = lat[vld])
-  cntryCls <- over(SpatialPoints(vldPoints, proj4string = CRS(proj4string(countriesSP))), countriesSP)
-  islCls <- over(SpatialPoints(vldPoints, proj4string = CRS(proj4string(islandsSP))), islandsSP)
+  sts <- stsHires()
+  countriesSF <- setCountriesSF(sts = sts)
+  monSubRgn <- c("Southern Asia", "South-Eastern Asia", "Eastern Asia")
+  nonMonCnt <- c("Afghanistan", "Iran")
+  slctdRows <- countriesSF$SUBREGION %in% monSubRgn & !(countriesSF$ADMIN %in% nonMonCnt)
+  cntryCls <- sf::st_intersects(sf::st_as_sf(vldPoints, coords = c("lon", "lat"), crs = sf::st_crs(countriesSF)),
+                                countriesSF)
+  cntCls <- sapply(cntryCls, function (z) {
+    if (length(z) == 0) NA_character_ else as.character(countriesSF$CONTINENT[z[1]]) })
+  monCls <- sapply(cntryCls, function (z) {
+    if (length(z) == 0) FALSE else ifelse(countriesSF$ADMIN[z[1]] %in% countriesSF$ADMIN[slctdRows], TRUE, FALSE) })
+
+  islCls <- sf::st_intersects(sf::st_as_sf(vldPoints, coords = c("lon", "lat"), crs = sf::st_crs(islandsSF)),
+                              islandsSF)
+  islCls <- sapply(islCls, function (z) { if (length(z) == 0) FALSE else TRUE })
 
   # island or Australia
-  f_i[vld, "IA", ] <- ifelse(!is.na(islCls$featurecla) | cntryCls$continent == "Australia",
-                          (15.6 - rowMeans(temp)) / 46.3, NA)
+  f_i[vld, "IA", ] <- ifelse(islCls | cntCls %in% c("Oceania", "Seven seas (open ocean)"),
+                             (15.6 - rowMeans(temp)[vld]) / 46.3, NA)
 
   # North America
   for (i_cal in applCal) {
@@ -247,36 +260,33 @@ cliBrtSunDurFrcPoints <- function(temp, prec, lat, lon, elv, year = 2000, aprchS
     mbr2 <- 0.231 * apply(MvEPmoa[slctd, , drop = F], 1, function(x, y) { stats::weighted.mean(x, y) }, y = MvDM)
     mbr3 <- abs(rowMeans(temp[slctd, , drop = F])) / 72.5
     mbr4 <- do.call(pmin, as.data.frame(replace(temp[slctd, , drop = F], temp[slctd, , drop = F] < 0, 0))) / 30.
-    f_i[slctd, "NA", ] <- ifelse(cntryCls$continent[slctd] == "North America", 0.331 - mbr2 - mbr3 + mbr4, NA)
+    f_i[slctd, "NA", ] <- ifelse(cntCls[slctd] == "North America", 0.331 - mbr2 - mbr3 + mbr4, NA)
   }
 
   # South America
-  f_i[vld, "SA", ] <- ifelse(cntryCls$continent == "South America and the Caribbean", 0., NA)
+  f_i[vld, "SA", ] <- ifelse(cntCls == "South America", 0., NA)
 
   # Eurasia
   for (i_cal in applCal) {
     slctd <- cal[[c("nrml", "leap")[i_cal]]]
     MvDM <- MvIDNM[c("nrml", "leap")[i_cal], ]
-    wrmst <- ifelse(lat >= 0., 7, 1)
-    cldst <- ifelse(lat >= 0., 1, 7)
+    wrmst <- ifelse(lat[slctd] >= 0., 7, 1)
+    cldst <- ifelse(lat[slctd] >= 0., 1, 7)
     numer <- (prec[slctd, wrmst, drop = F] / MvDM[wrmst]) - (prec[slctd, cldst, drop = F] / MvDM[cldst])
     denom <- rowSums(prec[slctd, , drop = F]) / N_doy[i_cal]
-    f_i[slctd, "EA", ] <- ifelse(cntryCls$continent[slctd] == "Eurasia",
+    f_i[slctd, "EA", ] <- ifelse(cntCls[slctd] %in% c("Europe", "Asia"),
                                  (1. / 10.2) + (numer / (36.8 * denom)) * (2.3 - (numer / denom)), NA)
   }
 
   # monsoonal Asia
-  patMA <- paste(c("Asia, South", "Asia, East", "Asia Pacific, High Income"), collapse="|")
-  mbr2 <- 0.314 * MvR_Emoa
-  mbr3 <- (31.8 - rowMeans(temp)) * (rowMeans(temp) / 140.) ** 2.
-  slctd <- grepl(patMA, cntryCls$GBD)
-  f_i[slctd, "MA", ] <- (-0.643 + mbr2 + mbr3)[slctd]
+  mbr2 <- 0.314 * MvR_Emoa[vld]
+  mbr3 <- (31.8 - rowMeans(temp)[vld]) * (rowMeans(temp)[vld] / 140.) ** 2.
+  f_i[vld, "MA", ] <- ifelse(monCls, (-0.643 + mbr2 + mbr3), NA)
 
   # Africa
   df.temp <- as.data.frame(temp)[vld, ]
-  f_i[vld, "AF", ] <- ifelse(cntryCls$continent == "Africa",
-                             (7.26 - (do.call(pmax, df.temp) - do.call(pmin, df.temp))) / 32.3,
-                          NA)
+  f_i[vld, "AF", ] <- ifelse(cntCls == "Africa",
+                             (7.26 - (do.call(pmax, df.temp) - do.call(pmin, df.temp))) / 32.3, NA)
 
   # The regional factors used by Eq 3.1 in Yin (1999)
   # a multiplicative function reflective of regional idiosyncrasies (sumf_i, unitless)
@@ -334,9 +344,11 @@ cliBrtSunDurFrcPoints <- function(temp, prec, lat, lon, elv, year = 2000, aprchS
 #' @description Estimates monthly averages for daily fraction of bright sunshine duration, for a given region and
 #'     year, by using the monthly time series of temperature and precipitation, and the elevation data.
 #'
-#' @param rs.temp multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)
-#' @param rs.prec multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)
-#' @param rl.elv single-layer Raster* object with the elevation values (in meters above sea level)
+#' @param rs.temp multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+#'     (in °C)
+#' @param rs.prec multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+#'     (in mm)
+#' @param rl.elv single-layer Raster*/SpatRaster object with the elevation values (in meters above sea level)
 #' @param sc.year 'numeric' scalar with the value of the year (using astronomical year numbering)
 #' @param aprchSIM 'character' vector of length 1 that indicates the formula used to estimate the value of solar
 #'     irradiance/irradiation for a specific day. Valid values are as follows: \cr
@@ -359,15 +371,16 @@ cliBrtSunDurFrcPoints <- function(temp, prec, lat, lon, elv, year = 2000, aprchS
 #'     angle (\eqn{h_{s}}{h_{s}}, Eq 8. in Davis et al. (2017)); finally, the mean hourly surface radiation is
 #'     derived as the quotient of the daily surface radiation and the daylength.
 #' @param filename output filename
-#' @param ... additional arguments passed on to \code{\link[raster]{writeRaster}}
+#' @param ... additional arguments passed on to \code{\link[terra]{writeRaster}}
 #'
 #' @details See \code{\link[macroBiome]{cliBrtSunDurFrcPoints}}.
 #'
-#' @return A 12-layer RasterStack with one-year time series of monthly mean relative sunshine duration.
+#' @return A 12-layer SpatRaster object with one-year time series of monthly mean relative sunshine duration.
 #'
-#' @note The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster* objects, while the object
-#'     \code{'rl.elv'} has to be a single-layer Raster* object. These Raster* objects must have the same bounding
-#'     box, projection, and resolution. The object \code{'sc.year'} has to be a single integer number.
+#' @note The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster*/SpatRaster objects, while the
+#'     object \code{'rl.elv'} has to be a single-layer Raster*/SpatRaster object. These Raster*/SpatRaster objects
+#'     must have the same bounding box, projection, and resolution. The object \code{'sc.year'} has to be a single
+#'     integer number.
 #'
 #' @references
 #'
@@ -398,6 +411,9 @@ cliBrtSunDurFrcPoints <- function(temp, prec, lat, lon, elv, year = 2000, aprchS
 #'     Theor Appl Climatol 64(1–2):61–68. \doi{10.1007/s007040050111}}
 #'
 #' @examples
+#' \donttest{
+#' library(raster)
+#'
 #' # Loading mandatory data for the Example 'Single-Year Grid'
 #' data(inp_exSglyGrid)
 #' inp_exSglyGrid <- lapply(inp_exSglyGrid, crop, extent(20.15, 20.25, 46.25, 46.35))
@@ -408,9 +424,12 @@ cliBrtSunDurFrcPoints <- function(temp, prec, lat, lon, elv, year = 2000, aprchS
 #' rs.bsdf <- cliBrtSunDurFrcGrid(temp, prec, elv, sc.year = 2010)
 #' rs.bsdf
 #' })
+#' }
 #'
+#' @importFrom methods as
+#' @importFrom sf sf_project st_crs
 #' @importFrom strex match_arg
-#' @import raster
+#' @import terra
 #'
 #' @export
 #'
@@ -420,6 +439,11 @@ cliBrtSunDurFrcGrid <- function(rs.temp, rs.prec, rl.elv, sc.year = 2000, aprchS
   # ~~~~ FUNCTION WARNINGS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   aprchSIM <- strex::match_arg(aprchSIM)
 
+  cv.arg <- c("rs.temp", "rs.prec", "rl.elv")
+  for (i in 1 : length(cv.arg)) {
+    if (is.null(get(cv.arg[i]))) { stop("Invalid argument: '", cv.arg[i], "' is missing, with no default.") }
+  }
+
   if (length(sc.year) == 1L & is.numeric(sc.year)) {
     if (sc.year %% 1 != 0) {
       stop("Invalid argument: 'sc.year' has to be a single integer number.")
@@ -428,63 +452,46 @@ cliBrtSunDurFrcGrid <- function(rs.temp, rs.prec, rl.elv, sc.year = 2000, aprchS
     stop("Invalid argument: 'sc.year' has to be a single integer number.")
   }
 
-  errorCheckingGrid(rs.temp = rs.temp, rs.prec = rs.prec, rl.elv = rl.elv)
+  err_han <- errorHandlingGrid(rs.temp = rs.temp, rs.prec = rs.prec, rl.elv = rl.elv)
+  list2env(Filter(Negate(is.null), err_han), envir = environment())
+
 
   # ~~~~ FUNCTION VARIABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-  rl.lat <- getGeogrCoord(raster(rs.temp, layer = 1), "lat")
-  rl.lon <- getGeogrCoord(raster(rs.temp, layer = 1), "lon")
+  rl.lat <- getGeogrCoord(terra::subset(rs.temp, 1), "lat")
+  rl.lon <- getGeogrCoord(terra::subset(rs.temp, 1), "lon")
 
-  rs.rslt <- stack(brick(rs.temp))
+  rs.rslt <- terra::rast(rs.temp)
 
-  small <- canProcessInMemory(rs.rslt, 3)
-  filename <- trim(filename)
-  if (!small & filename == '') {
-    filename <- rasterTmpFile()
-  }
-  if (filename != '') {
-    rs.rslt <- writeStart(rs.rslt, filename, overwrite = TRUE)
-    todisk <- TRUE
-  } else {
-    arr <- array(dim = c(ncol(rs.rslt), nrow(rs.rslt), nlayers(rs.rslt)))
-    todisk <- FALSE
-  }
-  bs <- blockSize(rs.temp)
-  pb <- pbCreate(bs$n, ...)
-
-  if (todisk) {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec")
-      cv.loc_dta <- c("rl.lat", "rl.lon", "rl.elv")
-      cv.arg <- c(cv.mly_var, cv.loc_dta)
-      for (i_arg in 1 : length(cv.arg)) {
-        assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
-      }
-      mx.rslt <- cliBrtSunDurFrcPoints(temp, prec, lat, lon, elv, year = sc.year, aprchSIM = aprchSIM)
-
-      rs.rslt <- writeValues(rs.rslt, mx.rslt, bs$row[i])
-      pbStep(pb, i)
-    }
-    rs.rslt <- writeStop(rs.rslt)
-  } else {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec")
-      cv.loc_dta <- c("rl.lat", "rl.lon", "rl.elv")
-      cv.arg <- c(cv.mly_var, cv.loc_dta)
-      for (i_arg in 1 : length(cv.arg)) {
-        assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
-      }
-      mx.rslt <- cliBrtSunDurFrcPoints(temp, prec, lat, lon, elv, year = sc.year, aprchSIM = aprchSIM)
-
-      cols <- bs$row[i] : (bs$row[i] + bs$nrows[i] - 1)
-      arr[, cols, ] <- array(mx.rslt, dim = c(bs$nrows[i], ncol(rs.rslt), nlayers(rs.rslt)))
-      pbStep(pb, i)
-    }
-    for (lyr in 1 : nlayers(rs.rslt)) {
-      rs.rslt <- setValues(rs.rslt, as.vector(arr[, , lyr]), layer = lyr)
-    }
+  cv.mly_var <- c("rs.temp", "rs.prec")
+  cv.loc_dta <- c("rl.lat", "rl.lon", "rl.elv")
+  cv.arg <- c(cv.mly_var, cv.loc_dta)
+  for (i_arg in 1 : length(cv.arg)) {
+    x <- get(cv.arg[i_arg])
+    terra::readStop(get(cv.arg[i_arg]))
+    if (!terra::readStart(get(cv.arg[i_arg]))) { stop(x@ptr$messages$getError()) }
+    on.exit(terra::readStop(get(cv.arg[i_arg])))
+    rm(x)
   }
 
-  pbClose(pb)
+  overwrite <- list(...)$overwrite
+  if (is.null(overwrite)) overwrite <- FALSE
+  wopt <- list(...)$wopt
+  if (is.null(wopt)) wopt <- list()
+
+  b <- terra::writeStart(rs.rslt, filename, overwrite, wopt = wopt)
+
+  for (i in 1 : b$n) {
+    for (i_arg in 1 : length(cv.arg)) {
+      x <- get(cv.arg[i_arg])
+      assign(substring(cv.arg[i_arg], 4), terra::readValues(x, row = b$row[i], nrows = b$nrows[i], col = 1,
+                                                            ncols = ncol(x), mat = TRUE))
+      rm(x)
+    }
+    mx.rslt <- cliBrtSunDurFrcPoints(temp, prec, lat, lon, elv, year = sc.year, aprchSIM = aprchSIM)
+
+    terra::writeValues(rs.rslt, mx.rslt, b$row[i], b$nrows[i])
+  }
+  terra::writeStop(rs.rslt)
 
   # ~~~~ RETURN VALUES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   names(rs.rslt) <- colnames(mx.rslt)
@@ -496,31 +503,65 @@ cliBrtSunDurFrcGrid <- function(rs.temp, rs.prec, rl.elv, sc.year = 2000, aprchS
 getGeogrCoord <- function(rstr, varName = c("lon", "lat")) {
   # Set the variable name for the content of the result
   varName <- strex::match_arg(varName)
-  # Create an array for the results
-  out <- raster::raster(rstr)
-  # Get the index of the blocks, every block has n rows, bigger the minblocks, smaller the chunk of rows
-  bs <- raster::blockSize(rstr, minblocks = 200)
   # Check whether or not it is necessary to transform the coordinate system
-  xform <- !(raster::compareCRS(rstr, sp::CRS("+init=epsg:4326")))
-  filename <- tempfile()
-  out <- raster::writeStart(out, filename, overwrite = TRUE)
-  for (i in 1 : bs$n) {
-    xncells <- raster::cellFromRow(rstr, (bs$row[i] : (bs$row[i] + bs$nrows[i] - 1)))
-    xmat <- raster::getValues(rstr, bs$row[i], bs$nrows[i])
+  xform <- !(terra::same.crs(rstr, terra::crs("+init=epsg:4326")))
+  # Create an array for the results
+  out <- terra::rast(rstr)
+  filename <- tempfile(fileext = ".tif")
+  # Get the index of the blocks, every block has n rows, bigger the minblocks, smaller the chunk of rows
+  b <- terra::writeStart(out, filename, overwrite = T)
+  for (i in 1 : b$n) {
+    xncells <- terra::cellFromRowColCombine(rstr, (b$row[i] : (b$row[i] + b$nrows[i] - 1)), 1 : ncol(rstr))
     if (xform) {
-      coords <- data <- as.data.frame(raster::xyFromCell(rstr, xncells))
-      xydata <- sp::spTransform(sp::SpatialPointsDataFrame(coords, data, proj4string = raster::crs(rstr)),
-                                sp::CRS("+init=epsg:4326"))@coords
+      coords <- as.data.frame(terra::xyFromCell(rstr, xncells))
+      xydata <- sf::sf_project(sf::st_crs(rstr), sf::st_crs("+init=epsg:4326"), coords)
     } else {
-      xydata <- raster::xyFromCell(rstr, xncells)
+      xydata <- terra::xyFromCell(rstr, xncells)
     }
 
     # Write the chunk of results, bs$row[i] is putting the results in the correct rows
-    out <- raster::writeValues(out, xydata[, which(varName == c("lon", "lat"))], bs$row[i])
+    terra::writeValues(out, xydata[, which(varName == c("lon", "lat"))], b$row[i], b$nrows[i])
   }
-  out <- raster::writeStop(out)
-  out <- raster::mask(out, rstr)
+  names(out) <- varName
+  terra::writeStop(out)
+  out <- terra::mask(out, rstr)
   return(out)
+}
+
+stsHires <- function() {
+  sts <- ifelse(!("rnaturalearthhires" %in% rownames(utils::installed.packages())),
+                "dwnldReq", "avbl")
+  if (sts == "avbl") {
+    sts <- ifelse(utils::packageVersion("rnaturalearthhires") < "0.0.0.9000",
+                  "dwnldReq", "avbl")
+  }
+  if (sts == "dwnldReq") {
+    try(devtools::install_github("ropensci/rnaturalearthhires"), silent = TRUE)
+  }
+  sts <- ifelse(!("rnaturalearthhires" %in% rownames(utils::installed.packages())),
+                "notAvbl", "avbl")
+  return(sts)
+}
+
+setCountriesSF <- function(sts = c("notAvbl", "avbl")) {
+
+  sts <- strex::match_arg(sts)
+  if (sts == "avbl") {
+    data("countries10", envir = environment(), package = "rnaturalearthhires")
+    countriesSF <- sf::st_as_sf(get("countries10", envir = environment(), inherits = FALSE))
+    countriesSF <- sf::st_make_valid(countriesSF[, c("ADMIN", "CONTINENT", "SUBREGION")])
+  } else {
+    data("countries50", envir = environment(), package = "rnaturalearthdata")
+    countriesSF <- sf::st_as_sf(get("countries50", envir = environment(), inherits = FALSE))
+    countriesSF <- sf::st_make_valid(countriesSF[, c("admin", "continent", "subregion")])
+    names(countriesSF) <- c("ADMIN", "CONTINENT", "SUBREGION", "geometry")
+    warning(paste0("Failed to install the package 'rnaturalearthhires'. ",
+                   "For this reason, the medium-resolution world map of the package ",
+                   "'rnaturalearthdata' is used to classify continents and regions.")
+    )
+  }
+
+  return(countriesSF)
 }
 
 # ~~~~~~~~~~~~

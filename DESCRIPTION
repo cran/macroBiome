@@ -1,7 +1,7 @@
 Package: macroBiome
 Type: Package
 Title: A Tool for Mapping the Distribution of the Biomes and Bioclimate
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: 
     c(person("Zoltán", "Szelepcsényi", email = "szelepcsenyi.zoltan@gmail.com", 
              role = c("aut", "cre", "cph"), comment = c(ORCID = "0000-0002-9844-4958")))
@@ -21,18 +21,22 @@ Description: Procedures for simulating biomes by equilibrium vegetation
   process-based biome models to be combined with high-resolution 
   paleoclimate simulation datasets (e.g., CHELSA-TraCE21k v1.0 dataset: 
   <https://chelsa-climate.org/chelsa-trace21k/>).
-Depends: R (>= 3.5.0), palinsol, raster
-Imports: rworldxtra, sp, strex
+Additional_repositories: http://packages.ropensci.org
+Depends: R (>= 3.5.0)
+Imports: devtools, methods, palinsol, raster, rnaturalearthdata, sf,
+        strex, terra
+Suggests: rnaturalearthhires
+Config/Needs/website: ropensci/rnaturalearthhires
 URL: https://github.com/szelepcsenyi/macroBiome
 BugReports: https://github.com/szelepcsenyi/macroBiome/issues/
 License: GPL (>= 3)
 Encoding: UTF-8
-LazyData: TRUE
-RoxygenNote: 7.2.3
-Date: 2023-05-29
+RoxygenNote: 7.3.0
+Date: 2024-01-15
+LazyData: true
 NeedsCompilation: no
-Packaged: 2023-05-29 20:19:55 UTC; szelep
 Author: Zoltán Szelepcsényi [aut, cre, cph]
     (<https://orcid.org/0000-0002-9844-4958>)
+Packaged: 2024-01-15 18:56:50 UTC; szelepcsenyi.zoltan
 Repository: CRAN
-Date/Publication: 2023-05-29 22:20:02 UTC
+Date/Publication: 2024-01-16 14:10:06 UTC

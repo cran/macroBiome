@@ -117,6 +117,7 @@
 #' \donttest{
 #' # Loading mandatory data for the Example 'Points'
 #' data(inp_exPoints)
+#' data(vegClsNumCodes)
 #'
 #' # Designate the biome type (using the related biolcimatic indices), with default settings,
 #' # at a grid cell near Szeged, Hungary (46.3N, 20.2E) (for the normal period 1981-2010)
@@ -224,14 +225,16 @@ cliBIOMEPoints <- function(temp, prec, bsdf, lat, elv, year = 2000, MSMC = 150.,
 #'     (1992), and designates the biome type using these values, for a given region and year/epoch, by using the
 #'     monthly time series of temperature, precipitation and relative sunshine duration, and the elevation data.
 #'
-#' @param rs.temp multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)
-#' @param rs.prec multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)
-#' @param rs.bsdf multi-layer Raster* object with one-year time series of monthly mean relative sunshine duration
-#'     (dimensionless)
-#' @param rl.elv single-layer Raster* object with the elevation values (in meters above sea level)
+#' @param rs.temp multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+#'     (in °C)
+#' @param rs.prec multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+#'     (in mm)
+#' @param rs.bsdf multi-layer Raster*/SpatRaster object with one-year time series of monthly mean relative sunshine
+#'     duration (dimensionless)
+#' @param rl.elv single-layer Raster*/SpatRaster object with the elevation values (in meters above sea level)
 #' @param sc.year 'numeric' scalar with the value of the year (using astronomical year numbering)
-#' @param rl.MSMC 'numeric' scalar or single-layer Raster* object with the value/values of the maximum soil moisture
-#'     capacity (aka 'bucket size') (in mm)
+#' @param rl.MSMC 'numeric' scalar or single-layer Raster*/SpatRaster object with the value/values of the maximum
+#'     soil moisture capacity (aka 'bucket size') (in mm)
 #' @param aprchTEMP 'character' vector of length 1 that indicates the scheme used to generate daily values of the
 #'     daily mean air temperature for a specific year. Valid values are as follows: \cr
 #'     (a) \code{'hip'} -
@@ -270,21 +273,21 @@ cliBIOMEPoints <- function(temp, prec, bsdf, lat, elv, year = 2000, MSMC = 150.,
 #' @param verbose 'logical' scalar that indicates whether or not values of the bioclimatic indices used should be
 #'     added to the output.
 #' @param filename output filename
-#' @param ... additional arguments passed on to \code{\link[raster]{writeRaster}}
+#' @param ... additional arguments passed on to \code{\link[terra]{writeRaster}}
 #'
 #' @details See \code{\link[macroBiome]{cliBIOMEPoints}}.
 #'
-#' @return Depending on the setting, a RasterStack with one or more layers where the numeric integers encoding the
-#'     biome type are stored at the last layer, while the additional layers contain the values of bioclimatic indices
-#'     used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
-#'     \code{verbose = FALSE}, the return object is a single-layer RasterStack with numeric integers encoding the
-#'     biome type.
+#' @return Depending on the setting, a SpatRaster object with one or more layers where the numeric integers encoding
+#'     the biome type are stored at the last layer, while the additional layers contain the values of bioclimatic
+#'     indices used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
+#'     \code{verbose = FALSE}, the return object is a single-layer SpatRaster object with numeric integers encoding
+#'     the biome type.
 #'
-#' @note The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster* objects, while
-#'     the object \code{'rl.elv'} has to be a single-layer Raster* object. The object \code{'rl.MSMC'} must be either
-#'     a single positive number (a universal bucket size) or a single-layer Raster* object (a regionally-specified
-#'     bucket size). These Raster* objects must have the same bounding box, projection, and resolution. The object
-#'     \code{'sc.year'} has to be a single integer number.
+#' @note The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster*/SpatRaster
+#'     objects, while the object \code{'rl.elv'} has to be a single-layer Raster*/SpatRaster object. The object
+#'     \code{'rl.MSMC'} must be either a single positive number (a universal bucket size) or a single-layer
+#'     Raster*/SpatRaster object (a regionally-specified bucket size). These Raster*/SpatRaster objects must have the
+#'     same bounding box, projection, and resolution. The object \code{'sc.year'} has to be a single integer number.
 #'
 #' @references
 #'
@@ -301,6 +304,8 @@ cliBIOMEPoints <- function(temp, prec, bsdf, lat, elv, year = 2000, MSMC = 150.,
 #'
 #' @examples
 #' \donttest{
+#' library(raster)
+#'
 #' # Loading mandatory data for the Example 'Climate Normal Grid'
 #' data(inp_exClnrGrid)
 #' inp_exClnrGrid <- lapply(inp_exClnrGrid, crop, extent(20.15, 20.25, 46.25, 46.35))
@@ -314,8 +319,10 @@ cliBIOMEPoints <- function(temp, prec, bsdf, lat, elv, year = 2000, MSMC = 150.,
 #' })
 #' }
 #'
+#' @importFrom methods as
+#' @importFrom sf sf_project st_crs
 #' @importFrom strex match_arg
-#' @import raster
+#' @import terra
 #'
 #' @export
 #'
@@ -331,11 +338,12 @@ cliBIOMEGrid <- function(rs.temp, rs.prec, rs.bsdf, rl.elv, sc.year = 2000, rl.M
 
   errorChecking(dvTEMP = dvTEMP, dvPREC = dvPREC)
 
-  cv.arg <- c("rs.temp", "rs.prec", "rs.bsdf", "rl.elv")
+  cv.arg <- c("rs.temp", "rs.prec", "rs.bsdf", "rl.elv", "rl.MSMC")
   for (i in 1 : length(cv.arg)) {
     if (is.null(get(cv.arg[i]))) { stop("Invalid argument: '", cv.arg[i], "' is missing, with no default.") }
   }
 
+  # sc.year
   if (length(sc.year) == 1L & is.numeric(sc.year)) {
     if (sc.year %% 1 != 0) {
       stop("Invalid argument: 'sc.year' has to be a single integer number.")
@@ -344,90 +352,96 @@ cliBIOMEGrid <- function(rs.temp, rs.prec, rs.bsdf, rl.elv, sc.year = 2000, rl.M
     stop("Invalid argument: 'sc.year' has to be a single integer number.")
   }
 
-  cv.rstr_cls <- c("RasterLayer", "RasterBrick", "RasterStack")
-  if (length(which(!is.na(match(class(rl.MSMC), cv.rstr_cls)))) < 1L) {
-    if (length(rl.MSMC) == 1L & is.numeric(rl.MSMC)) {
-      rl <- raster(rs.temp, layer = 1)
-      values(rl) <- rl.MSMC
-      rl.MSMC <- mask(rl, raster(rs.temp, layer = 1))
+  # Labels for valid classes of objects to be checked
+  cv.rstr_cls <- c("SpatRaster", "RasterLayer", "RasterBrick", "RasterStack")
+
+  # Create an auxiliary raster
+  if (is.null(rs.temp)) {
+    rs.aux <- rs.prec
+    cv.aux <- "rs.prec"
+  } else {
+    rs.aux <- rs.temp
+    cv.aux <- "rs.temp"
+  }
+  if (all(sapply(cv.rstr_cls, function(x) { !inherits(rs.aux, x) } ))) {
+    stop("Invalid argument: '", cv.aux, "' has to be a RasterLayer, RasterBrick, a RasterStack,",
+         " or a SpatRaster object.")
+  }
+  if (!inherits(rs.aux, "SpatRaster")) { rs.aux <- methods::as(rs.aux, "SpatRaster") }
+  rs.aux <- terra::subset(rs.aux, 1)
+
+  # rl.MSMC
+  if (all(sapply(cv.rstr_cls, function(x) { !inherits(rl.MSMC, x) } ))) {
+    if (length(rl.MSMC) == 1L & is.numeric(rl.MSMC) & rl.MSMC > 0.) {
+      rl <- rs.aux
+      terra::values(rl) <- rl.MSMC
+      rl.MSMC <- terra::mask(rl, rs.aux)
     } else {
-      stop("Invalid argument: 'rl.MSMC' has to be a single number or ",
-           "a RasterLayer, RasterBrick, or a RasterStack with one layer.")
+      stop("Invalid argument: 'rl.MSMC' has to be a single positive number or ",
+           "a SpatRaster object with one layer.")
     }
   } else {
-    if (nlayers(rl.MSMC) != 1) {
-      stop("Invalid argument: 'rl.MSMC' has to be a single number or ",
-           "a RasterLayer, RasterBrick, or a RasterStack with one layer.")
+    if (terra::nlyr(rl.MSMC) != 1) {
+      stop("Invalid argument: 'rl.MSMC' has to be a single positive number or ",
+           "a SpatRaster object with one layer.")
     }
   }
 
-  errorCheckingGrid(rs.temp = rs.temp, rs.prec = rs.prec, rs.bsdf = rs.bsdf, rl.elv = rl.elv, rl.MSMC = rl.MSMC)
+  err_han <- errorHandlingGrid(rs.temp = rs.temp, rs.prec = rs.prec, rs.bsdf = rs.bsdf, rl.elv = rl.elv,
+                               rl.MSMC = rl.MSMC)
+  list2env(Filter(Negate(is.null), err_han), envir = environment())
 
 
   # ~~~~ FUNCTION VARIABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-  rl.lat <- getGeogrCoord(raster(rs.temp, layer = 1), "lat")
+  rl.lat <- getGeogrCoord(rs.aux, "lat")
 
   n_lyr <- ifelse(verbose, 6, 1)
 
-  rs.rslt <- brick(rs.temp, nl = n_lyr)
+  rs.rslt <- terra::rast(rs.aux, nlyrs = n_lyr)
 
-  small <- canProcessInMemory(rs.rslt, 3)
-  filename <- trim(filename)
-  if (!small & filename == '') {
-    filename <- rasterTmpFile()
+  cv.mly_var <- c("rs.temp", "rs.prec", "rs.bsdf")
+  cv.loc_dta <- c("rl.lat", "rl.elv", "rl.MSMC")
+  cv.arg <- c(cv.mly_var, cv.loc_dta)
+  for (i_arg in 1 : length(cv.arg)) {
+    if (!is.null(get(cv.arg[i_arg]))) {
+      x <- get(cv.arg[i_arg])
+      terra::readStop(get(cv.arg[i_arg]))
+      if (!terra::readStart(get(cv.arg[i_arg]))) { stop(x@ptr$messages$getError()) }
+      on.exit(terra::readStop(get(cv.arg[i_arg])))
+      rm(x)
+    }
   }
-  if (filename != '') {
-    rs.rslt <- writeStart(rs.rslt, filename, overwrite = TRUE)
-    todisk <- TRUE
-  } else {
-    arr <- array(dim = c(ncol(rs.rslt), nrow(rs.rslt), nlayers(rs.rslt)))
-    todisk <- FALSE
-  }
-  bs <- blockSize(rs.temp)
-  pb <- pbCreate(bs$n, ...)
 
-  if (todisk) {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec", "rs.bsdf")
-      cv.loc_dta <- c("rl.lat", "rl.elv", "rl.MSMC")
-      cv.arg <- c(cv.mly_var, cv.loc_dta)
-      for (i_arg in 1 : length(cv.arg)) {
-        assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
+  overwrite <- list(...)$overwrite
+  if (is.null(overwrite)) overwrite <- FALSE
+  wopt <- list(...)$wopt
+  if (is.null(wopt)) wopt <- list()
+
+  b <- terra::writeStart(rs.rslt, filename, overwrite, wopt = wopt)
+
+  for (i in 1 : b$n) {
+    for (i_arg in 1 : length(cv.arg)) {
+      if (!is.null(get(cv.arg[i_arg]))) {
+        x <- get(cv.arg[i_arg])
+        assign(substring(cv.arg[i_arg], 4), terra::readValues(x, row = b$row[i], nrows = b$nrows[i], col = 1,
+                                                              ncols = ncol(x), mat = TRUE))
+        rm(x)
+      } else {
+        assign(substring(cv.arg[i_arg], 4), NULL)
       }
-      df.rslt <- cliBIOMEPoints(temp, prec, bsdf, lat, elv, sc.year, MSMC, aprchTEMP, aprchPREC, aprchBSDF,
-                                dvTEMP, dvPREC, verbose)
-      numCode <- bioBiomeDefinitions$Numeric.code[match(df.rslt[["vegCls"]], rownames(bioBiomeDefinitions))]
-      df.rslt[["vegCls"]] <- numCode
+    }
+    df.rslt <- cliBIOMEPoints(temp, prec, bsdf, lat, elv, sc.year, MSMC, aprchTEMP, aprchPREC, aprchBSDF,
+                              dvTEMP, dvPREC, verbose)
+    numCode <- bioBiomeDefinitions$Numeric.code[match(df.rslt[["vegCls"]], rownames(bioBiomeDefinitions))]
+    df.rslt[["vegCls"]] <- numCode
 
-      rs.rslt <- writeValues(rs.rslt, as.matrix(df.rslt), bs$row[i])
-      pbStep(pb, i)
-    }
-    rs.rslt <- writeStop(rs.rslt)
-  } else {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec", "rs.bsdf")
-      cv.loc_dta <- c("rl.lat", "rl.elv", "rl.MSMC")
-      cv.arg <- c(cv.mly_var, cv.loc_dta)
-      for (i_arg in 1 : length(cv.arg)) {
-        assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
-      }
-      df.rslt <- cliBIOMEPoints(temp, prec, bsdf, lat, elv, sc.year, MSMC, aprchTEMP, aprchPREC, aprchBSDF,
-                                dvTEMP, dvPREC, verbose)
-      numCode <- bioBiomeDefinitions$Numeric.code[match(df.rslt[["vegCls"]], rownames(bioBiomeDefinitions))]
-      df.rslt[["vegCls"]] <- numCode
-
-      cols <- bs$row[i] : (bs$row[i] + bs$nrows[i] - 1)
-      arr[, cols, ] <- array(as.matrix(df.rslt), dim = c(bs$nrows[i], ncol(rs.rslt), nlayers(rs.rslt)))
-      pbStep(pb, i)
-    }
-    for (lyr in 1 : nlayers(rs.rslt)) {
-      rs.rslt <- setValues(rs.rslt, as.vector(arr[, , lyr]), layer = lyr)
-    }
+    terra::writeValues(rs.rslt, as.matrix(df.rslt), b$row[i], b$nrows[i])
   }
+  terra::writeStop(rs.rslt)
 
   # ~~~~ RETURN VALUES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   names(rs.rslt) <- colnames(df.rslt)
-  return(stack(rs.rslt))
+  return(rs.rslt)
 
 }

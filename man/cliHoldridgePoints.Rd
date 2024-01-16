@@ -54,6 +54,7 @@ As with any function with a point mode, a set of basic input data is defined her
 \examples{
 # Loading mandatory data for the Example 'Points'
 data(inp_exPoints)
+data(vegClsNumCodes)
 
 # Designate the HLZ type (using the related bioclimatic indices),
 # at a grid cell near Szeged, Hungary (46.3N, 20.2E) (for the normal period 1981-2010)

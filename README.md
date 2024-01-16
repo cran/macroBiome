@@ -50,6 +50,7 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if (length(new.packages)) { install.packages(new.packages) }
 
 library(macroBiome)
+library(terra)
 library(raster)
 library(rasterVis)
 
@@ -110,22 +111,22 @@ Col <- c("#01665E", "#5AB4AC", "#8C510A", "#FB9A99", "#64D264", "#C9FFC9",
          "#F6E8C3", "#CAB2D6", "#FF7F00", "#FDBF6F", "#D1E5F0")
 bioColours <- data.frame(Code = seq(1, length(Name)), Name = Name, Col = Col)
 rm(Name, Col)
-
+                  
 # Reclassify the raw data of the generated biome map
 slctd <- as.numeric(levels(factor(values(rs.BIOME)[!is.na(values(rs.BIOME))])))
 reclass_mtx <- matrix(c(NA, slctd, NA, seq(1, length(slctd))), ncol = 2)
-biome <- ratify(reclassify(rs.BIOME, reclass_mtx))
-class <- unlist(lapply(reclass_mtx[-1, 1],
+biome <- as.factor(classify(rs.BIOME, reclass_mtx))
+class <- unlist(lapply(reclass_mtx[-1, 1], 
                        function(i) { subset(bioColours, Code == i, select = Name)}))
 rat <- data.frame(ID = reclass_mtx[-1, 2], class = class)
 levels(biome)[[1]] <- rat
 
 # Plot the biome map
 main <- "Eastern Mediterranean–Black Sea–Caspian-Corridor region"
-plt <- levelplot(biome, main = main, col.regions = bioColours$Col[slctd],
-                 colorkey = list(space = "bottom", height = 1.1), pretty = T,
+plt <- levelplot(biome, main = main, col.regions = bioColours$Col[slctd], 
+                 colorkey = list(space = "bottom", height = 1.1), pretty = T, 
                  par.settings = list(layout.widths = list(axis.key.padding = 4)))
-plt <- plt + latticeExtra::layer(sp.lines(rnaturalearth::countries110,
+plt <- plt + latticeExtra::layer(sp.lines(as(rnaturalearth::countries110, "Spatial"), 
                                           col = "gray30", lwd = 2.0))
 print(plt)
 ```
@@ -140,8 +141,8 @@ citation("macroBiome")
 
 To cite package ‘macroBiome’ in publications use:
 
-> Szelepcsényi Z (2023) macroBiome: A Tool for Mapping the Distribution
-> of the Biomes and Bioclimate. R package version 0.3.0.
+> Szelepcsényi Z (2024) macroBiome: A Tool for Mapping the Distribution
+> of the Biomes and Bioclimate. R package version 0.4.0.
 > <https://doi.org/10.5281/zenodo.7633367>
 
 I have invested a considerable amount of time and effort in creating the

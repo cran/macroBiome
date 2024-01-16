@@ -19,14 +19,16 @@ cliForestSteppeGrid(
 )
 }
 \arguments{
-\item{rs.temp}{multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)}
+\item{rs.temp}{multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+(in °C)}
 
-\item{rs.prec}{multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)}
+\item{rs.prec}{multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+(in mm)}
 
-\item{rs.bsdf}{multi-layer Raster* object with one-year time series of monthly mean relative sunshine duration
-(dimensionless)}
+\item{rs.bsdf}{multi-layer Raster*/SpatRaster object with one-year time series of monthly mean relative sunshine
+duration (dimensionless)}
 
-\item{rl.elv}{single-layer Raster* object with the elevation values (in meters above sea level)}
+\item{rl.elv}{single-layer Raster*/SpatRaster object with the elevation values (in meters above sea level)}
 
 \item{sc.year}{'numeric' scalar with the value of the year (using astronomical year numbering)}
 
@@ -59,13 +61,13 @@ added to the output.}
 
 \item{filename}{output filename}
 
-\item{...}{additional arguments passed on to \code{\link[raster]{writeRaster}}}
+\item{...}{additional arguments passed on to \code{\link[terra]{writeRaster}}}
 }
 \value{
-Depending on the settings, a RasterStack with two or more layers where the presence/absence data are
+Depending on the settings, a SpatRaster object with two or more layers where the presence/absence data are
     stored in layers labelled \code{'fsp_hlz'}, \code{'fsp_fai'} and \code{'fsp_svm'}, while the additional layers
     contain the values of bioclimatic indices used. If \code{verbose = FALSE}, the return object is a two- or
-    three-layer RasterStack with presence/absence data, depending on the available data.
+    three-layer SpatRaster object with presence/absence data, depending on the available data.
 }
 \description{
 Calculates the values of bioclimatic indices used in forest-steppe models with different theoretical
@@ -76,9 +78,10 @@ Calculates the values of bioclimatic indices used in forest-steppe models with d
 See \code{\link[macroBiome]{cliForestSteppePoints}}.
 }
 \note{
-The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster* objects, while
-    the object \code{'rl.elv'} has to be a single-layer Raster* object. These Raster* objects must have the same
-    bounding box, projection, and resolution. The object \code{'sc.year'} has to be a single integer number.
+The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster*/SpatRaster
+    objects, while the object \code{'rl.elv'} has to be a single-layer Raster*/SpatRaster object. These
+    Raster*/SpatRaster objects must have the same bounding box, projection, and resolution. The object
+    \code{'sc.year'} has to be a single integer number.
 }
 \examples{
 # Loading mandatory data for the Example 'Climate Normal Grid'

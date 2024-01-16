@@ -70,10 +70,11 @@ To estimate the monthly averages of relative sunlight duration, the approach pre
     The procedure proposed by Yin (1999) requires the calculation of several regional factors (see Eq 3.3 in Yin
     (1999)). Each regional factor is activated as a function of latitude and longitude. However, it is important
     to note that in this implementation, these factors are activated with the current configuration of continents
-    and islands. Continents and regions are classified using the high-resolution world map of the
-    \code{\link[rworldxtra]{rworldxtra-package}}. In checking whether or not a given geographic location can be
-    defined as an island, the high-resolution world map of the \code{\link[rnaturalearth]{rnaturalearth}}
-    is applied.
+    and islands. Continents and regions are classified using the medium-resolution world map of the
+    \code{\link[rnaturalearthdata]{rnaturalearthdata}}, if the high-resolution world map of the
+    \href{https://github.com/ropensci/rnaturalearthhires}{rnaturalearthhires} is not available. In checking whether
+    or not a given geographic location can be defined as an island, the high-resolution world maps (version 5.1.1)
+    of the \href{https://www.naturalearthdata.com/}{Natural Earth} are applied.
 }
 \note{
 As with any function with a point mode, a set of basic input data is defined here. In this case, they are as
@@ -91,6 +92,7 @@ As with any function with a point mode, a set of basic input data is defined her
    must be the same size of first dimension of the matrices containing the basic data.
 }
 \examples{
+\donttest{
 library (graphics)
 
 # Loading mandatory data for the Example 'Points'
@@ -112,7 +114,6 @@ axis(1, at = seq(1, ncol(bsdf01)), labels = colnames(bsdf01))
 legend(1, 0.7, legend = rownames(bsdf01), col = cols, lty = 1 : 2, lwd = 2, xpd = TRUE)
 })
 
-\donttest{
 # Relative root mean square error between measured and estimated values for the 'bsdf',
 # at a grid cell near Szeged, Hungary (46.3N, 20.2E), in the period 1981-2010
 with(inp_exPoints, {

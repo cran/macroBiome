@@ -278,11 +278,13 @@ cliForestSteppePoints <- function(temp, prec, bsdf = NULL, lat = NULL, elv = NUL
 #'     backgrounds, and estimates the presence/absence of 'forest-steppe' ecotone, for a given region and year/epoch,
 #'     by using the monthly time series of climate variables, and the elevation data.
 #'
-#' @param rs.temp multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)
-#' @param rs.prec multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)
-#' @param rs.bsdf multi-layer Raster* object with one-year time series of monthly mean relative sunshine duration
-#'     (dimensionless)
-#' @param rl.elv single-layer Raster* object with the elevation values (in meters above sea level)
+#' @param rs.temp multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+#'     (in °C)
+#' @param rs.prec multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+#'     (in mm)
+#' @param rs.bsdf multi-layer Raster*/SpatRaster object with one-year time series of monthly mean relative sunshine
+#'     duration (dimensionless)
+#' @param rl.elv single-layer Raster*/SpatRaster object with the elevation values (in meters above sea level)
 #' @param sc.year 'numeric' scalar with the value of the year (using astronomical year numbering)
 #' @param aprchTEMP 'character' vector of length 1 that indicates the scheme used to generate daily values of the
 #'     daily mean air temperature for a specific year. Valid values are as follows: \cr
@@ -308,18 +310,19 @@ cliForestSteppePoints <- function(temp, prec, bsdf = NULL, lat = NULL, elv = NUL
 #' @param verbose 'logical' scalar that indicates whether or not values of the bioclimatic indices used should be
 #'     added to the output.
 #' @param filename output filename
-#' @param ... additional arguments passed on to \code{\link[raster]{writeRaster}}
+#' @param ... additional arguments passed on to \code{\link[terra]{writeRaster}}
 #'
 #' @details See \code{\link[macroBiome]{cliForestSteppePoints}}.
 #'
-#' @return Depending on the settings, a RasterStack with two or more layers where the presence/absence data are
+#' @return Depending on the settings, a SpatRaster object with two or more layers where the presence/absence data are
 #'     stored in layers labelled \code{'fsp_hlz'}, \code{'fsp_fai'} and \code{'fsp_svm'}, while the additional layers
 #'     contain the values of bioclimatic indices used. If \code{verbose = FALSE}, the return object is a two- or
-#'     three-layer RasterStack with presence/absence data, depending on the available data.
+#'     three-layer SpatRaster object with presence/absence data, depending on the available data.
 #'
-#' @note The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster* objects, while
-#'     the object \code{'rl.elv'} has to be a single-layer Raster* object. These Raster* objects must have the same
-#'     bounding box, projection, and resolution. The object \code{'sc.year'} has to be a single integer number.
+#' @note The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster*/SpatRaster
+#'     objects, while the object \code{'rl.elv'} has to be a single-layer Raster*/SpatRaster object. These
+#'     Raster*/SpatRaster objects must have the same bounding box, projection, and resolution. The object
+#'     \code{'sc.year'} has to be a single integer number.
 #'
 #' @references
 #'
@@ -353,8 +356,10 @@ cliForestSteppePoints <- function(temp, prec, bsdf = NULL, lat = NULL, elv = NUL
 #' })
 #' }
 #'
+#' @importFrom methods as
+#' @importFrom sf sf_project st_crs
 #' @importFrom strex match_arg
-#' @import raster
+#' @import terra
 #'
 #' @export
 #'
@@ -381,12 +386,16 @@ cliForestSteppeGrid <- function(rs.temp, rs.prec, rs.bsdf = NULL, rl.elv = NULL,
     stop("Invalid argument: 'sc.year' has to be a single integer number.")
   }
 
-  errorCheckingGrid(rs.temp = rs.temp, rs.prec = rs.prec, rs.bsdf = rs.bsdf, rl.elv = rl.elv)
+  err_han <- errorHandlingGrid(rs.temp = rs.temp, rs.prec = rs.prec, rs.bsdf = rs.bsdf, rl.elv = rl.elv)
+  list2env(Filter(Negate(is.null), err_han), envir = environment())
+
+  rs.aux <- terra::subset(rs.temp, 1)
+
 
 
   # ~~~~ FUNCTION VARIABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-  rl.lat <- getGeogrCoord(raster(rs.temp, layer = 1), "lat")
+  rl.lat <- getGeogrCoord(rs.aux, "lat")
 
   if (verbose) {
     n_lyr <- ifelse(is.null(rs.bsdf), 6, 10)
@@ -394,64 +403,43 @@ cliForestSteppeGrid <- function(rs.temp, rs.prec, rs.bsdf = NULL, rl.elv = NULL,
     n_lyr <- ifelse(is.null(rs.bsdf), 2, 3)
   }
 
-  rs.rslt <- stack(brick(rs.temp, nl = n_lyr))
+  rs.rslt <- terra::rast(rs.aux, nlyrs = n_lyr)
 
-  small <- canProcessInMemory(rs.rslt, 3)
-  filename <- trim(filename)
-  if (!small & filename == '') {
-    filename <- rasterTmpFile()
+  cv.mly_var <- c("rs.temp", "rs.prec", "rs.bsdf")
+  cv.loc_dta <- c("rl.lat", "rl.elv")
+  cv.arg <- c(cv.mly_var, cv.loc_dta)
+  for (i_arg in 1 : (length(cv.arg))) {
+    if (!is.null(get(cv.arg[i_arg]))) {
+      x <- get(cv.arg[i_arg])
+      terra::readStop(get(cv.arg[i_arg]))
+      if (!terra::readStart(get(cv.arg[i_arg]))) { stop(x@ptr$messages$getError()) }
+      rm(x)
+    }
   }
-  if (filename != '') {
-    rs.rslt <- writeStart(rs.rslt, filename, overwrite = TRUE)
-    todisk <- TRUE
-  } else {
-    arr <- array(dim = c(ncol(rs.rslt), nrow(rs.rslt), nlayers(rs.rslt)))
-    todisk <- FALSE
-  }
-  bs <- blockSize(rs.temp)
-  pb <- pbCreate(bs$n, ...)
 
-  if (todisk) {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec", "rs.bsdf")
-      cv.loc_dta <- c("rl.lat", "rl.elv")
-      cv.arg <- c(cv.mly_var, cv.loc_dta)
-      for (i_arg in 1 : length(cv.arg)) {
-        if (!is.null(get(cv.arg[i_arg]))) {
-          assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
-        } else {
-          assign(substring(cv.arg[i_arg], 4), NULL)
-        }
+  overwrite <- list(...)$overwrite
+  if (is.null(overwrite)) overwrite <- FALSE
+  wopt <- list(...)$wopt
+  if (is.null(wopt)) wopt <- list()
+
+  b <- terra::writeStart(rs.rslt, filename, overwrite, wopt = wopt)
+
+  for (i in 1 : b$n) {
+    for (i_arg in 1 : length(cv.arg)) {
+      if (!is.null(get(cv.arg[i_arg]))) {
+        x <- get(cv.arg[i_arg])
+        assign(substring(cv.arg[i_arg], 4), terra::readValues(x, row = b$row[i], nrows = b$nrows[i], col = 1,
+                                                              ncols = ncol(x), mat = TRUE))
+        rm(x)
+      } else {
+        assign(substring(cv.arg[i_arg], 4), NULL)
       }
-      mx.rslt <- cliForestSteppePoints(temp, prec, bsdf, lat, elv, sc.year, aprchTEMP, aprchBSDF, dvTEMP, verbose)
+    }
+    mx.rslt <- cliForestSteppePoints(temp, prec, bsdf, lat, elv, sc.year, aprchTEMP, aprchBSDF, dvTEMP, verbose)
 
-      rs.rslt <- writeValues(rs.rslt, mx.rslt, bs$row[i])
-      pbStep(pb, i)
-    }
-    rs.rslt <- writeStop(rs.rslt)
-  } else {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec", "rs.bsdf")
-      cv.loc_dta <- c("rl.lat", "rl.elv")
-      cv.arg <- c(cv.mly_var, cv.loc_dta)
-      for (i_arg in 1 : length(cv.arg)) {
-        if (!is.null(get(cv.arg[i_arg]))) {
-          assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
-        } else {
-          assign(substring(cv.arg[i_arg], 4), NULL)
-        }
-      }
-      mx.rslt <- cliForestSteppePoints(temp, prec, bsdf, lat, elv, sc.year, aprchTEMP, aprchBSDF, dvTEMP, verbose)
-
-      cols <- bs$row[i] : (bs$row[i] + bs$nrows[i] - 1)
-      arr[, cols, ] <- array(mx.rslt, dim = c(bs$nrows[i], ncol(rs.rslt), nlayers(rs.rslt)))
-      pbStep(pb, i)
-    }
-    for (lyr in 1 : nlayers(rs.rslt)) {
-      rs.rslt <- setValues(rs.rslt, as.vector(arr[, , lyr]), layer = lyr)
-    }
+    terra::writeValues(rs.rslt, mx.rslt, b$row[i], b$nrows[i])
   }
-
+  terra::writeStop(rs.rslt)
 
   # ~~~~ RETURN VALUES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   names(rs.rslt) <- colnames(mx.rslt)

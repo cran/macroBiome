@@ -32,19 +32,20 @@
 #'     For details about calculating bioclimatic indices, see the function
 #'     \code{\link[macroBiome]{cliBioCliIdxPoints}}. Since \code{pth} is more of a technical measure, it is not
 #'     calculated by the function \code{\link[macroBiome]{cliBioCliIdxPoints}}. The value of \code{pth} depends on
-#'     mean annual temperature and annual cycle of precipitation: \code{pth = 2 * mat} if >70% of precipitation falls
-#'     in winter half-year, (b) \code{pth = 2 * mat + 28} if >70% of precipitation falls in summer half-year, and
-#'     otherwise \code{pth = 2 * mat + 14}. For this index, the same definitions are used for seasons as in the
-#'     function \code{\link[macroBiome]{cliBioCliIdxPoints}}, i.e., summer (winter) half-year is defined as the
-#'     warmer (cooler) six month period of AMJJAS (from April to September) and ONDJFM (from October to March). \cr
+#'     mean annual temperature and annual cycle of precipitation: \code{pth = 2 * mat} if >70 percentage of
+#'     precipitation falls in winter half-year, (b) \code{pth = 2 * mat + 28} if >70 percentage of precipitation
+#'     falls in summer half-year, and otherwise \code{pth = 2 * mat + 14}. For this index, the same definitions are
+#'     used for seasons as in the function \code{\link[macroBiome]{cliBioCliIdxPoints}}, i.e., summer (winter)
+#'     half-year is defined as the warmer (cooler) six month period of AMJJAS (from April to September) and ONDJFM
+#'     (from October to March). \cr
 #'     Numerous variants of the Köppen classification system are known (e.g., Köppen-Geiger classification: Köppen
 #'     1936; Köppen-Trewartha classification: Trewartha and Horn 1980). Here, one of the most widely used versions of
 #'     the Köppen-Geiger classification system is implemented, in accordance with works of Peel et al. (2007) and
 #'     Beck et al. (2018). This classification system is the same as that presented by Köppen (1936) with three
 #'     differences. First, classes \code{'C'} (temperate) and \code{'D'} (cold) are distinguished using a 0°C
 #'     threshold instead of a -3°C threshold, following Russell (1931). Second, the sub-classes of the class
-#'     \code{'B'} (arid) are identified depending on whether 70% of precipitation falls in the summer or winter
-#'     half-year. Third, the sub-classes \code{'s'} (dry summer) and \code{'w'} (dry winter) within the classes
+#'     \code{'B'} (arid) are identified depending on whether 70 percentage of precipitation falls in the summer or
+#'     winter half-year. Third, the sub-classes \code{'s'} (dry summer) and \code{'w'} (dry winter) within the classes
 #'     \code{'C'} and \code{'D'} are made mutually exclusive by assigning \code{'s'} when more precipitation falls in
 #'     winter than in summer and assigning \code{'w'} otherwise. In this version, a total of 30 KGC types are
 #'     distinguished (see \code{\link[macroBiome]{vegClsNumCodes}}).
@@ -80,6 +81,7 @@
 #' @examples
 #' # Loading mandatory data for the Example 'Points'
 #' data(inp_exPoints)
+#' data(vegClsNumCodes)
 #'
 #' # Designate the KGC type (using the related bioclimatic indices),
 #' # at a grid cell near Szeged, Hungary (46.3N, 20.2E) (for the normal period 1981-2010)
@@ -203,23 +205,25 @@ cliKoppenPoints <- function(temp, prec, verbose = FALSE) {
 #'     and precipitation. The classification scheme is based on the procedure described by Köppen (1936) and follows
 #'     the modifications described by Peel et al. (2007).
 #'
-#' @param rs.temp multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)
-#' @param rs.prec multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)
+#' @param rs.temp multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+#'     (in °C)
+#' @param rs.prec multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+#'     (in mm)
 #' @param verbose 'logical' scalar that indicates whether or not values of the bioclimatic indices used should be
 #'     added to the output.
 #' @param filename output filename
-#' @param ... additional arguments passed on to \code{\link[raster]{writeRaster}}
+#' @param ... additional arguments passed on to \code{\link[terra]{writeRaster}}
 #'
 #' @details See \code{\link[macroBiome]{cliKoppenPoints}}.
 #'
-#' @return Depending on the setting, a RasterStack with one or more layers where the numeric integers encoding the
-#'     KGC type are stored at the last layer, while the additional layers contain the values of bioclimatic indices
-#'     used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
-#'     \code{verbose = FALSE}, the return object is a single-layer RasterStack with numeric integers encoding the KGC
-#'     type.
+#' @return Depending on the setting, a SpatRaster object with one or more layers where the numeric integers encoding
+#'    the KGC type are stored at the last layer, while the additional layers contain the values of bioclimatic
+#'    indices used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
+#'     \code{verbose = FALSE}, the return object is a single-layer SpatRaster object with numeric integers encoding
+#'     the KGC type.
 #'
-#' @note The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster* objects. These Raster* objects
-#'     must have the same bounding box, projection, and resolution.
+#' @note The objects \code{'rs.temp'} and \code{'rs.prec'} must be 12-layer Raster*/SpatRaster objects. These
+#'     Raster*/SpatRaster objects must have the same bounding box, projection, and resolution.
 #'
 #' @references
 #'
@@ -240,7 +244,8 @@ cliKoppenPoints <- function(temp, prec, verbose = FALSE) {
 #' rs.KGC
 #' })
 #'
-#' @import raster
+#' @importFrom methods as
+#' @import terra
 #'
 #' @export
 #'
@@ -252,67 +257,58 @@ cliKoppenGrid <- function(rs.temp, rs.prec, verbose = FALSE, filename = "", ...)
     if (is.null(get(cv.arg[i]))) { stop("Invalid argument: '", cv.arg[i], "' is missing, with no default.") }
   }
 
-  errorCheckingGrid(rs.temp = rs.temp, rs.prec = rs.prec)
+  err_han <- errorHandlingGrid(rs.temp = rs.temp, rs.prec = rs.prec)
+  list2env(Filter(Negate(is.null), err_han), envir = environment())
+
+  rs.aux <- terra::subset(rs.temp, 1)
 
 
   # ~~~~ FUNCTION VARIABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
   n_lyr <- ifelse(verbose, 14, 1)
 
-  rs.rslt <- brick(rs.temp, nl = n_lyr)
+  rs.rslt <- terra::rast(rs.aux, nlyrs = n_lyr)
 
-  small <- canProcessInMemory(rs.rslt, 3)
-  filename <- trim(filename)
-  if (!small & filename == '') {
-    filename <- rasterTmpFile()
+  cv.mly_var <- c("rs.temp", "rs.prec")
+  cv.arg <- cv.mly_var
+  for (i_arg in 1 : length(cv.arg)) {
+    if (!is.null(get(cv.arg[i_arg]))) {
+      x <- get(cv.arg[i_arg])
+      terra::readStop(get(cv.arg[i_arg]))
+      if (!terra::readStart(get(cv.arg[i_arg]))) { stop(x@ptr$messages$getError()) }
+      on.exit(terra::readStop(get(cv.arg[i_arg])))
+      rm(x)
+    }
   }
-  if (filename != '') {
-    rs.rslt <- writeStart(rs.rslt, filename, overwrite = TRUE)
-    todisk <- TRUE
-  } else {
-    arr <- array(dim = c(ncol(rs.rslt), nrow(rs.rslt), nlayers(rs.rslt)))
-    todisk <- FALSE
-  }
-  bs <- blockSize(rs.temp)
-  pb <- pbCreate(bs$n, ...)
 
-  if (todisk) {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec")
-      cv.arg <- cv.mly_var
-      for (i_arg in 1 : length(cv.arg)) {
-        assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
+  overwrite <- list(...)$overwrite
+  if (is.null(overwrite)) overwrite <- FALSE
+  wopt <- list(...)$wopt
+  if (is.null(wopt)) wopt <- list()
+
+  b <- terra::writeStart(rs.rslt, filename, overwrite, wopt = wopt)
+
+  for (i in 1 : b$n) {
+    for (i_arg in 1 : length(cv.arg)) {
+      if (!is.null(get(cv.arg[i_arg]))) {
+        x <- get(cv.arg[i_arg])
+        assign(substring(cv.arg[i_arg], 4), terra::readValues(x, row = b$row[i], nrows = b$nrows[i], col = 1,
+                                                              ncols = ncol(x), mat = TRUE))
+        rm(x)
+      } else {
+        assign(substring(cv.arg[i_arg], 4), NULL)
       }
-      df.rslt <- cliKoppenPoints(temp, prec, verbose = verbose)
-      numCode <- as.numeric(rownames(vegCkgcTypes))[match(df.rslt[["vegCls"]], vegCkgcTypes$CODE.KGC)]
-      df.rslt[["vegCls"]] <- numCode
+    }
+    df.rslt <- cliKoppenPoints(temp, prec, verbose = verbose)
+    numCode <- as.numeric(rownames(vegCkgcTypes))[match(df.rslt[["vegCls"]], vegCkgcTypes$CODE.KGC)]
+    df.rslt[["vegCls"]] <- numCode
 
-      rs.rslt <- writeValues(rs.rslt, as.matrix(df.rslt), bs$row[i])
-      pbStep(pb, i)
-    }
-    rs.rslt <- writeStop(rs.rslt)
-  } else {
-    for (i in 1 : bs$n) {
-      cv.mly_var <- c("rs.temp", "rs.prec")
-      cv.arg <- cv.mly_var
-      for (i_arg in 1 : length(cv.arg)) {
-        assign(substring(cv.arg[i_arg], 4), getValues(get(cv.arg[i_arg]), row = bs$row[i], nrows = bs$nrows[i]))
-      }
-      df.rslt <- cliKoppenPoints(temp, prec, verbose = verbose)
-      numCode <- as.numeric(rownames(vegCkgcTypes))[match(df.rslt[["vegCls"]], vegCkgcTypes$CODE.KGC)]
-      df.rslt[["vegCls"]] <- numCode
-
-      cols <- bs$row[i] : (bs$row[i] + bs$nrows[i] - 1)
-      arr[, cols, ] <- array(as.matrix(df.rslt), dim = c(bs$nrows[i], ncol(rs.rslt), nlayers(rs.rslt)))
-      pbStep(pb, i)
-    }
-    for (lyr in 1 : nlayers(rs.rslt)) {
-      rs.rslt <- setValues(rs.rslt, as.vector(arr[, , lyr]), layer = lyr)
-    }
+    terra::writeValues(rs.rslt, as.matrix(df.rslt), b$row[i], b$nrows[i])
   }
+  terra::writeStop(rs.rslt)
 
   # ~~~~ RETURN VALUES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   names(rs.rslt) <- colnames(df.rslt)
-  return(stack(rs.rslt))
+  return(rs.rslt)
 
 }

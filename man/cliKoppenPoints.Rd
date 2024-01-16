@@ -49,19 +49,20 @@ To classify vegetation, the KGC system developed by Köppen (1936) and fine-tune
     For details about calculating bioclimatic indices, see the function
     \code{\link[macroBiome]{cliBioCliIdxPoints}}. Since \code{pth} is more of a technical measure, it is not
     calculated by the function \code{\link[macroBiome]{cliBioCliIdxPoints}}. The value of \code{pth} depends on
-    mean annual temperature and annual cycle of precipitation: \code{pth = 2 * mat} if >70% of precipitation falls
-    in winter half-year, (b) \code{pth = 2 * mat + 28} if >70% of precipitation falls in summer half-year, and
-    otherwise \code{pth = 2 * mat + 14}. For this index, the same definitions are used for seasons as in the
-    function \code{\link[macroBiome]{cliBioCliIdxPoints}}, i.e., summer (winter) half-year is defined as the
-    warmer (cooler) six month period of AMJJAS (from April to September) and ONDJFM (from October to March). \cr
+    mean annual temperature and annual cycle of precipitation: \code{pth = 2 * mat} if >70 percentage of
+    precipitation falls in winter half-year, (b) \code{pth = 2 * mat + 28} if >70 percentage of precipitation
+    falls in summer half-year, and otherwise \code{pth = 2 * mat + 14}. For this index, the same definitions are
+    used for seasons as in the function \code{\link[macroBiome]{cliBioCliIdxPoints}}, i.e., summer (winter)
+    half-year is defined as the warmer (cooler) six month period of AMJJAS (from April to September) and ONDJFM
+    (from October to March). \cr
     Numerous variants of the Köppen classification system are known (e.g., Köppen-Geiger classification: Köppen
     1936; Köppen-Trewartha classification: Trewartha and Horn 1980). Here, one of the most widely used versions of
     the Köppen-Geiger classification system is implemented, in accordance with works of Peel et al. (2007) and
     Beck et al. (2018). This classification system is the same as that presented by Köppen (1936) with three
     differences. First, classes \code{'C'} (temperate) and \code{'D'} (cold) are distinguished using a 0°C
     threshold instead of a -3°C threshold, following Russell (1931). Second, the sub-classes of the class
-    \code{'B'} (arid) are identified depending on whether 70% of precipitation falls in the summer or winter
-    half-year. Third, the sub-classes \code{'s'} (dry summer) and \code{'w'} (dry winter) within the classes
+    \code{'B'} (arid) are identified depending on whether 70 percentage of precipitation falls in the summer or
+    winter half-year. Third, the sub-classes \code{'s'} (dry summer) and \code{'w'} (dry winter) within the classes
     \code{'C'} and \code{'D'} are made mutually exclusive by assigning \code{'s'} when more precipitation falls in
     winter than in summer and assigning \code{'w'} otherwise. In this version, a total of 30 KGC types are
     distinguished (see \code{\link[macroBiome]{vegClsNumCodes}}).
@@ -77,6 +78,7 @@ As with any function with a point mode, a set of basic input data is defined her
 \examples{
 # Loading mandatory data for the Example 'Points'
 data(inp_exPoints)
+data(vegClsNumCodes)
 
 # Designate the KGC type (using the related bioclimatic indices),
 # at a grid cell near Szeged, Hungary (46.3N, 20.2E) (for the normal period 1981-2010)

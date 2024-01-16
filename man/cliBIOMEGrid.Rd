@@ -22,19 +22,21 @@ cliBIOMEGrid(
 )
 }
 \arguments{
-\item{rs.temp}{multi-layer Raster* object with one-year time series of monthly mean air temperature (in °C)}
+\item{rs.temp}{multi-layer Raster*/SpatRaster object with one-year time series of monthly mean air temperature
+(in °C)}
 
-\item{rs.prec}{multi-layer Raster* object with one-year time series of monthly precipitation sum (in mm)}
+\item{rs.prec}{multi-layer Raster*/SpatRaster object with one-year time series of monthly precipitation sum
+(in mm)}
 
-\item{rs.bsdf}{multi-layer Raster* object with one-year time series of monthly mean relative sunshine duration
-(dimensionless)}
+\item{rs.bsdf}{multi-layer Raster*/SpatRaster object with one-year time series of monthly mean relative sunshine
+duration (dimensionless)}
 
-\item{rl.elv}{single-layer Raster* object with the elevation values (in meters above sea level)}
+\item{rl.elv}{single-layer Raster*/SpatRaster object with the elevation values (in meters above sea level)}
 
 \item{sc.year}{'numeric' scalar with the value of the year (using astronomical year numbering)}
 
-\item{rl.MSMC}{'numeric' scalar or single-layer Raster* object with the value/values of the maximum soil moisture
-capacity (aka 'bucket size') (in mm)}
+\item{rl.MSMC}{'numeric' scalar or single-layer Raster*/SpatRaster object with the value/values of the maximum
+soil moisture capacity (aka 'bucket size') (in mm)}
 
 \item{aprchTEMP}{'character' vector of length 1 that indicates the scheme used to generate daily values of the
 daily mean air temperature for a specific year. Valid values are as follows: \cr
@@ -81,14 +83,14 @@ added to the output.}
 
 \item{filename}{output filename}
 
-\item{...}{additional arguments passed on to \code{\link[raster]{writeRaster}}}
+\item{...}{additional arguments passed on to \code{\link[terra]{writeRaster}}}
 }
 \value{
-Depending on the setting, a RasterStack with one or more layers where the numeric integers encoding the
-    biome type are stored at the last layer, while the additional layers contain the values of bioclimatic indices
-    used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
-    \code{verbose = FALSE}, the return object is a single-layer RasterStack with numeric integers encoding the
-    biome type.
+Depending on the setting, a SpatRaster object with one or more layers where the numeric integers encoding
+    the biome type are stored at the last layer, while the additional layers contain the values of bioclimatic
+    indices used. The meaning of integers is given in the data frame \code{\link[macroBiome]{vegClsNumCodes}}. If
+    \code{verbose = FALSE}, the return object is a single-layer SpatRaster object with numeric integers encoding
+    the biome type.
 }
 \description{
 Calculates the values of bioclimatic indices used in the BIOME model developed by Prentice et al.
@@ -99,14 +101,16 @@ Calculates the values of bioclimatic indices used in the BIOME model developed b
 See \code{\link[macroBiome]{cliBIOMEPoints}}.
 }
 \note{
-The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster* objects, while
-    the object \code{'rl.elv'} has to be a single-layer Raster* object. The object \code{'rl.MSMC'} must be either
-    a single positive number (a universal bucket size) or a single-layer Raster* object (a regionally-specified
-    bucket size). These Raster* objects must have the same bounding box, projection, and resolution. The object
-    \code{'sc.year'} has to be a single integer number.
+The objects \code{'rs.temp'}, \code{'rs.prec'} and \code{'rs.bsdf'} must be 12-layer Raster*/SpatRaster
+    objects, while the object \code{'rl.elv'} has to be a single-layer Raster*/SpatRaster object. The object
+    \code{'rl.MSMC'} must be either a single positive number (a universal bucket size) or a single-layer
+    Raster*/SpatRaster object (a regionally-specified bucket size). These Raster*/SpatRaster objects must have the
+    same bounding box, projection, and resolution. The object \code{'sc.year'} has to be a single integer number.
 }
 \examples{
 \donttest{
+library(raster)
+
 # Loading mandatory data for the Example 'Climate Normal Grid'
 data(inp_exClnrGrid)
 inp_exClnrGrid <- lapply(inp_exClnrGrid, crop, extent(20.15, 20.25, 46.25, 46.35))
